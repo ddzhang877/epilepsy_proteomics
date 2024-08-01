@@ -1,0 +1,140 @@
+#cox#
+fit <- coxph(Surv(Epilepsy_years,Epilepsy_status==1)~Protein+age+as.factore(sex)+as.factore(ethn)+as.factore(Qaulification)+bmi+Socioeconomic+as.factore(Smoking_status)+as.factore(Alcohol_consumption),data=mydata)
+summary(fit)
+
+#linear regression analysis#
+fit <- lm(Epilepsy_status~Protein+age+as.factore(sex)+as.factore(ethn)+as.factore(Qaulification)+bmi+Socioeconomic+as.factore(Smoking_status)+as.factore(Alcohol_consumption),data=mydata)
+summary(fit)
+
+#volcano plot#
+ggplot(data,aes(HR, -log10(p.value)))+
+  geom_hline(yintercept = -log10(0.05/2920), linetype = "dashed", color = "black")+
+  geom_vline(xintercept = 1, linetype = "dashed", color = "black")+
+  geom_point(aes(color = change),size = 3.5, 
+             alpha = 0.5)+
+  scale_size_continuous(range = c(0,1))+
+  scale_x_continuous(limits = c(0,3))+
+  theme_bw(base_size = 12)+
+  theme(panel.grid = element_blank(),
+        legend.position = 'right',
+        legend.justification = c(0,1))+
+  # 设置图例
+  guides(col = 
+           guide_colorbar(title = "-Log10_p-value",
+                          ticks.colour = NA,
+                          reverse = T,
+                          title.vjust = 0.8,
+                          barheight = 8,
+                          barwidth = 1),
+         size = "none") +
+  # 添加标签：
+  geom_text_repel(data = filter(data, Exposure %in% core_pro),
+                  max.overlaps = getOption("ggrepel.max.overlaps", default = 20),
+                  # 这里的filter很关键，筛选你想要标记的基因
+                  aes(label = Exposure),
+                  size = 4.5, 
+                  color = 'black') +
+  xlab("HR")+
+  ylab("-Log10(p-value)")
+
+#Temporal evolutions#
+### Match（1:10match）
+install.packages("MatchIt")
+library(MatchIt)
+m.out1 <- matchit(epilepsy_status~age+ethn+Qaulification+Socioeconomic+bmi+Smoking_status+Alcohol_consumption,
+                  method = "nearest", distance = "mahalanobis" , ratio = 10,  link = "logit" ,
+                  exact = ~sex,      
+                  data = a)  # exact:对某些变量精确匹配
+plot(summary(m.out1)) 
+m.data <- match.data(m.out1)
+### 提取出match数据，赋予case和control相同的时间
+m.data=m.data[order(m.data$subclass),]
+time_scale=m.data$epilepsy_years[which(m.data$epilepsy_status==1)]
+m.data$time_scale=rep(time_scale,each=11)
+m.data$time_scale=m.data$time_scale*sign(-1) # 距离发病时间
+write.csv(m.data,"match_age_sex_smk_bmi_incident_epilepsy_0425.csv")
+df_final<-data.frame(eid=m.data[,1])
+for (i in 12:2931) {
+  df=m.data[,c(1:11,i,2932:2934)]
+  df=na.omit(df) #去掉NA的，没有相应残差
+  FML=as.formula(paste0(colnames(m.data)[i],"~sex+age+ethn+Qaulification+bmi+Socioeconomic+Smoking_status+Alcohol_consumption"))
+  fit=lm(FML,data = df)
+  res <- fit$residuals
+  df<-data.frame(eid=df[,1],res=res)
+  colnames(df)[2]<-paste0(colnames(m.data)[i],"_res")
+  df_final<-left_join(df_final,df,by='eid')
+}
+library(tidyr)
+library(dplyr)
+library(stringr)
+library(ggplot2)
+df_final1=left_join(df_final,m.data[c(1:11,2932:2934)],by="eid")
+## 对配对计算Z score
+df_final1$subclass=as.factor(df_final1$subclass)
+df_group=df_final1 %>% group_by(subclass) #对exposure分组
+variable.names=colnames(df_group)[2:2921]
+t=df_group %>% summarise(
+  (get(variable.names[1])[which(epilepsy_status==1)]-mean(get(variable.names[1])[which(epilepsy_status==0)],na.rm=T))/sd(get(variable.names[1])[which(epilepsy_status==0)],na.rm=T)
+) 
+colnames(t)[2]=str_sub(variable.names[1],1,-5)
+for (i in 2:2920) {
+  t2=df_group %>% summarise(
+    (get(variable.names[i])[which(epilepsy_status==1)]-mean(get(variable.names[i])[which(epilepsy_status==0)],na.rm=T))/sd(get(variable.names[i])[which(epilepsy_status==0)],na.rm=T)
+  ) 
+  colnames(t2)[2]=str_sub(variable.names[i],1,-5)
+  t=cbind(t,t2[,2])
+}
+time=df_group %>% summarise(
+  unique(time_scale)
+) # 每个sublass对应的随访时间
+t=cbind(t,time[,2])
+colnames(t)[2922]="Year"
+df_t<-gather(t,key='Protein',value='Value',-subclass,-Year)
+colnames(df_t)[4]<-'Estimate'
+# Year Protein Z-score的表格 ================================
+## 设置不同时间窗口/间隔
+#df_t$Year=df_t$Year/365
+variable.names=colnames(t)[2:2921]
+df_loess=data.frame("Year"=NA,"Protein"=NA,"Estimate_loess"=NA)
+for (i in variable.names) {
+  df2=filter(df_t,Protein==i)
+  df2=na.omit(df2)
+  df3=data.frame(Year=seq(-15.0,-0.2,0.2),Protein=rep(i,length(seq(-15.0,-0.2,0.2))))
+  loess90 <- loess(Estimate ~ Year, data=df2, span=300)
+  smooth90 <- predict(loess90,df3)
+  df3$Estimate_loess=smooth90
+  df_loess=rbind(df_loess,df3)
+}
+df_loess1=df_loess[-1,]
+getwd()
+write.csv(df_loess1,"tragectories_loess_0425.csv")
+
+#cluster#
+df_loess_w=pivot_wider(df_loess,names_from = Year,values_from = Estimate_loess)
+df_loess_w=as.data.frame(df_loess_w)
+df_loess_w<-df_loess_w[-1,]
+df_loess_w<-merge(df_loess_w,sig,by='Protein')
+row.names(df_loess_w)=df_loess_w$Protein
+df_loess_w=df_loess_w[,-c(1:4)]
+df_loess_w=as.matrix(df_loess_w)
+dist_protein <- dist(df_loess_w, method="euclidean")  #Cosine  minkowski euclidean Manhattan 
+fit_protein <- hclust(dist_protein, method="ward.D") #ward.D   complete
+heatmap(as.matrix(dist_protein))
+
+
+#SEM#
+library(lavaan)
+sem_model_0 <- '
+# measurement model
+  status=~Epilepsy_status
+  stress=~Stress_events
+  ProL=~Protein1+Protein2+Protein3
+  
+# structural model
+  status ~ c*stress + b1*ProL
+  ProL ~ a1*stress
+  IE:=a1*b1
+'
+fit_model <- sem(sem_model_0, data = mydata, std.lv = TRUE)
+summary(fit_model, fit.measures=TRUE,standard=TRUE)
+fitMeasures(fit_model,c("chisq","df","pvalue","gfi","cfi","rmr","srmr","rmsea"))
