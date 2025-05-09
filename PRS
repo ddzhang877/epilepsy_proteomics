@@ -1,0 +1,23 @@
+#!/bin/bash
+
+Rscript /PRSice2/PRSice.R \
+ --prsice /PRSice2/PRSice_linux \
+ --base base.txt \
+ --snp SNP \
+ --chr CHR \
+ --bp BP \
+ --a1 A1 \
+ --a2 A2 \
+ --stat BETA \
+ --beta \
+ --pvalue P \
+ --clump-kb 250kb \
+ --clump-p 1.000000 \
+ --clump-r2 0.100000 \
+ --fastscore  \
+ --bar-levels 0.00000005,0.000001,0.000005,0.00001,0.00005,0.0001,0.0005,0.001,0.005,0.01,0.05,0.1,0.5,1 \
+ --no-regress  \
+ --target UKB_gene_qc_chr# \
+ --binary-target T \
+ --out /result/PRSice \
+ --extract /result/PRSice.valid
