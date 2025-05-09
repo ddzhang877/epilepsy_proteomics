@@ -3,7 +3,7 @@ fit <- coxph(Surv(Epilepsy_years,Epilepsy_status==1)~Protein+age+as.factore(sex)
 summary(fit)
 
 #linear regression analysis#
-fit <- lm(Epilepsy_status~Protein+age+as.factore(sex)+as.factore(ethn)+as.factore(Qaulification)+bmi+Socioeconomic+as.factore(Smoking_status)+as.factore(Alcohol_consumption),data=mydata)
+fit <- lm(Protein~Epilepsy_status+age+as.factore(sex)+as.factore(ethn)+as.factore(Qaulification)+bmi+Socioeconomic+as.factore(Smoking_status)+as.factore(Alcohol_consumption),data=mydata)
 summary(fit)
 
 #volcano plot#
