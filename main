@@ -18,7 +18,6 @@ ggplot(data,aes(HR, -log10(p.value)))+
   theme(panel.grid = element_blank(),
         legend.position = 'right',
         legend.justification = c(0,1))+
-  # 设置图例
   guides(col = 
            guide_colorbar(title = "-Log10_p-value",
                           ticks.colour = NA,
@@ -27,10 +26,8 @@ ggplot(data,aes(HR, -log10(p.value)))+
                           barheight = 8,
                           barwidth = 1),
          size = "none") +
-  # 添加标签：
   geom_text_repel(data = filter(data, Exposure %in% core_pro),
                   max.overlaps = getOption("ggrepel.max.overlaps", default = 20),
-                  # 这里的filter很关键，筛选你想要标记的基因
                   aes(label = Exposure),
                   size = 4.5, 
                   color = 'black') +
@@ -44,19 +41,19 @@ library(MatchIt)
 m.out1 <- matchit(epilepsy_status~age+ethn+Qaulification+Socioeconomic+bmi+Smoking_status+Alcohol_consumption,
                   method = "nearest", distance = "mahalanobis" , ratio = 10,  link = "logit" ,
                   exact = ~sex,      
-                  data = a)  # exact:对某些变量精确匹配
+                  data = a) 
 plot(summary(m.out1)) 
 m.data <- match.data(m.out1)
-### 提取出match数据，赋予case和control相同的时间
+
 m.data=m.data[order(m.data$subclass),]
 time_scale=m.data$epilepsy_years[which(m.data$epilepsy_status==1)]
 m.data$time_scale=rep(time_scale,each=11)
-m.data$time_scale=m.data$time_scale*sign(-1) # 距离发病时间
+m.data$time_scale=m.data$time_scale*sign(-1) 
 write.csv(m.data,"match_age_sex_smk_bmi_incident_epilepsy_0425.csv")
 df_final<-data.frame(eid=m.data[,1])
 for (i in 12:2931) {
   df=m.data[,c(1:11,i,2932:2934)]
-  df=na.omit(df) #去掉NA的，没有相应残差
+  df=na.omit(df)
   FML=as.formula(paste0(colnames(m.data)[i],"~sex+age+ethn+Qaulification+bmi+Socioeconomic+Smoking_status+Alcohol_consumption"))
   fit=lm(FML,data = df)
   res <- fit$residuals
@@ -69,9 +66,9 @@ library(dplyr)
 library(stringr)
 library(ggplot2)
 df_final1=left_join(df_final,m.data[c(1:11,2932:2934)],by="eid")
-## 对配对计算Z score
+
 df_final1$subclass=as.factor(df_final1$subclass)
-df_group=df_final1 %>% group_by(subclass) #对exposure分组
+df_group=df_final1 %>% group_by(subclass) 
 variable.names=colnames(df_group)[2:2921]
 t=df_group %>% summarise(
   (get(variable.names[1])[which(epilepsy_status==1)]-mean(get(variable.names[1])[which(epilepsy_status==0)],na.rm=T))/sd(get(variable.names[1])[which(epilepsy_status==0)],na.rm=T)
@@ -86,14 +83,12 @@ for (i in 2:2920) {
 }
 time=df_group %>% summarise(
   unique(time_scale)
-) # 每个sublass对应的随访时间
+) 
 t=cbind(t,time[,2])
 colnames(t)[2922]="Year"
 df_t<-gather(t,key='Protein',value='Value',-subclass,-Year)
 colnames(df_t)[4]<-'Estimate'
-# Year Protein Z-score的表格 ================================
-## 设置不同时间窗口/间隔
-#df_t$Year=df_t$Year/365
+
 variable.names=colnames(t)[2:2921]
 df_loess=data.frame("Year"=NA,"Protein"=NA,"Estimate_loess"=NA)
 for (i in variable.names) {
