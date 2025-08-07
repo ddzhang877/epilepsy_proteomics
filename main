@@ -1,9 +1,9 @@
 #cox#
-fit <- coxph(Surv(Epilepsy_years,Epilepsy_status==1)~Protein+age+as.factore(sex)+as.factore(ethn)+as.factore(Qaulification)+bmi+Socioeconomic+as.factore(Smoking_status)+as.factore(Alcohol_consumption),data=mydata)
+fit <- coxph(Surv(Epilepsy_years,Epilepsy_status==1)~Protein+age+as.factor(sex)+as.factor(ethn)+as.factor(Qaulification)+bmi+Socioeconomic+as.factor(Smoking_status)+as.factor(Alcohol_consumption),data=mydata)
 summary(fit)
 
 #linear regression analysis#
-fit <- lm(Protein~Epilepsy_status+age+as.factore(sex)+as.factore(ethn)+as.factore(Qaulification)+bmi+Socioeconomic+as.factore(Smoking_status)+as.factore(Alcohol_consumption),data=mydata)
+fit <- lm(Protein~Epilepsy_status+age+as.factor(sex)+as.factor(ethn)+as.factor(Qaulification)+bmi+Socioeconomic+as.factor(Smoking_status)+as.factor(Alcohol_consumption),data=mydata)
 summary(fit)
 
 #volcano plot#
@@ -49,7 +49,7 @@ m.data=m.data[order(m.data$subclass),]
 time_scale=m.data$epilepsy_years[which(m.data$epilepsy_status==1)]
 m.data$time_scale=rep(time_scale,each=11)
 m.data$time_scale=m.data$time_scale*sign(-1) 
-write.csv(m.data,"match_age_sex_smk_bmi_incident_epilepsy_0425.csv")
+write.csv(m.data,"match_incident_epilepsy.csv")
 df_final<-data.frame(eid=m.data[,1])
 for (i in 12:2931) {
   df=m.data[,c(1:11,i,2932:2934)]
@@ -102,7 +102,7 @@ for (i in variable.names) {
 }
 df_loess1=df_loess[-1,]
 getwd()
-write.csv(df_loess1,"tragectories_loess_0425.csv")
+write.csv(df_loess1,"tragectories_loess.csv")
 
 #cluster#
 df_loess_w=pivot_wider(df_loess,names_from = Year,values_from = Estimate_loess)
